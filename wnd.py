@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'untitled.ui'
 #
-# Created: Tue Jun 02 16:20:30 2015
+# Created: Tue Jun 02 17:32:30 2015
 #      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -54,7 +54,7 @@ class Ui_MainWindow(object):
         self.check.setGeometry(QtCore.QRect(20, 60, 75, 23))
         self.check.setObjectName(_fromUtf8("check"))
         self.preview = QtGui.QCheckBox(self.tab)
-        self.preview.setEnabled(False)
+        self.preview.setEnabled(True)
         self.preview.setGeometry(QtCore.QRect(215, 93, 101, 17))
         self.preview.setObjectName(_fromUtf8("preview"))
         self.run = QtGui.QPushButton(self.tab)

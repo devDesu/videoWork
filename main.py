@@ -41,8 +41,9 @@ class Gluer:
                         if temp_size[1] > size[1]: size[1] = temp_size[1]
         self.size = size
 
-    def work(self, clb):
+    def work(self, clb, preview=False):
         fourcc = -1
+        if preview: self.total = 48
         out = cv2.VideoWriter(self.out_name.encode('utf-8'), fourcc, self.fps, (self.size[0], self.size[1]),  True)
         for key, value in self.minutes.iteritems():
             for key2, value2 in value.iteritems():
@@ -52,11 +53,14 @@ class Gluer:
                     out.write(frame)
                     self.done += 1
                     clb(self.done)
+                    if self.done >= self.total:
+                        out.release()
+                        return
         out.release()
 
     def get_minutes(self):
         self.done = 0
-        self.minutes = os.listdir(self.path)  # 0 to 12, minutes
+        self.minutes = [x for x in os.listdir(self.path) if os.path.isdir(os.path.join(self.path, x))]  # 0 to 12, minutes
         total_minutes = len(self.minutes)
         counter = 0  #
         total = 0
@@ -114,8 +118,11 @@ class MainWindow(QtGui.QMainWindow, Ui_MainWindow):
 
     def rn(self):
         self.gluerInstance.fps = self.fps.value()
-        self.progressBar.setMaximum(self.gluerInstance.total)
-        threading.Thread(group=None, target=self.gluerInstance.work(self.callback), name='worker thread').start()
+        self.progressBar.setValue(0)
+        max = 48 if self.preview.isChecked() else self.gluerInstance.total
+        self.progressBar.setMaximum(max)
+        threading.Thread(group=None, target=self.gluerInstance.work(self.callback, self.preview.isChecked()),
+                         name='worker thread').start()
 
     def callback(self, inp):
         self.progressBar.setValue(inp)
@@ -135,5 +142,3 @@ class MainWindow(QtGui.QMainWindow, Ui_MainWindow):
 
 
 f = MainWindow(None)
-
-

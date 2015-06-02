@@ -89,7 +89,7 @@
      </widget>
      <widget class="QCheckBox" name="preview">
       <property name="enabled">
-       <bool>false</bool>
+       <bool>true</bool>
       </property>
       <property name="geometry">
        <rect>
@@ -121,7 +121,7 @@
      </widget>
      <widget class="QDoubleSpinBox" name="fps">
       <property name="enabled">
-       <bool>false</bool>
+       <bool>true</bool>
       </property>
       <property name="geometry">
        <rect>
