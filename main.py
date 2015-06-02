@@ -76,11 +76,11 @@ class Gluer:
                 width, height = 720, 1280
             return [width, height]
 
-h = Gluer(u'G:\\fight')
+h = Gluer(u'G:\\demo')
 h.get_minutes()
 h.check_size()
 fourcc = -1
-out = cv2.VideoWriter(u'G:\\out.avi'.encode('utf-8'), fourcc, 12.0, (h.size[1], h.size[0]),  True)
+out = cv2.VideoWriter(u'G:\\out.avi'.encode('utf-8'), fourcc, 24.0, (h.size[0], h.size[1]),  True)
 for key, value in h.minutes.iteritems():
     for key2, value2 in value.iteritems():
         for filename in value2:
