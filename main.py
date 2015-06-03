@@ -79,7 +79,6 @@ class Gluer:
                 errorEdit.append("{}\{}\{}".format(self.path, key, key2))
                 self.minutes[key][key2].sort(key=lambda x: len(x))
                 counter3 += 1
-                print len(value2) != self.fps, counter3 == seconds_counter and counter == total_minutes
                 if len(value2) != self.fps and not (counter == total_minutes and counter3 == seconds_counter):
                     errorEdit.append('fps error: {} {}\{}'.format(len(value2), key, key2))
                 counter2 += len(value2)
