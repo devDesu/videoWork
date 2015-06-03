@@ -56,8 +56,10 @@ class Gluer:
                     self.done += 1
                     clb(self.done)
                     if self.done >= self.total:
+                        time.sleep(1)
                         out.release()
                         return
+        time.sleep(2)
         out.release()
 
     def get_minutes(self, errorEdit):
@@ -67,10 +69,10 @@ class Gluer:
         counter = 0  #
         total = 0
         self.minutes = {key: os.listdir(os.path.join(self.path, key)) for key in self.minutes}
-        for key, value in self.minutes.iteritems():
+        for key, value in sorted(self.minutes.iteritems(), key=lambda x: int(x[0])):
             counter2 = 0
             counter += 1
-            if len(value) != 59 and not counter == total_minutes:
+            if len(value) != 60 and not counter == total_minutes:
                 errorEdit.append('Seconds in minute error: {}: {}'.format(key, value))
             seconds_counter = len(self.minutes[key])
             counter3 = 0
