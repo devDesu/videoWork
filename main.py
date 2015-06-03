@@ -24,7 +24,7 @@ class Gluer:
         self.size = []
         self.done = 0
 
-    def check_size(self):
+    def check_size(self, errorEdit):
         size = None
         for key, value in self.minutes.iteritems():
             for key2, value2 in value.iteritems():
@@ -40,17 +40,19 @@ class Gluer:
                         if temp_size[0] > size[0]: size[0] = temp_size[0]
                         if temp_size[1] > size[1]: size[1] = temp_size[1]
         self.size = size
+        errorEdit.append("max size is {} {}".format(*size))
 
-    def work(self, clb, preview=False):
+    def work(self, clb, errorEdit, preview=False):
         fourcc = -1
         if preview: self.total = 48
         out = cv2.VideoWriter(self.out_name.encode('utf-8'), fourcc, self.fps, (self.size[0], self.size[1]),  True)
-        for key, value in self.minutes.iteritems():
-            for key2, value2 in value.iteritems():
+        for key, value in sorted(self.minutes.iteritems()):
+            for key2, value2 in sorted(value.iteritems()):
                 for filename in value2:
                     frame = cv2.imread(os.path.join(self.path, key, key2, filename).encode("utf-8"),
                                        flags=cv2.cv.CV_LOAD_IMAGE_COLOR)
                     out.write(frame)
+                    errorEdit.append("{}\{}\{}".format(key, key2, filename))
                     self.done += 1
                     clb(self.done)
                     if self.done >= self.total:
@@ -58,7 +60,7 @@ class Gluer:
                         return
         out.release()
 
-    def get_minutes(self):
+    def get_minutes(self, errorEdit):
         self.done = 0
         self.minutes = [x for x in os.listdir(self.path) if os.path.isdir(os.path.join(self.path, x))]  # 0 to 12, minutes
         total_minutes = len(self.minutes)
@@ -67,20 +69,21 @@ class Gluer:
         self.minutes = {key: os.listdir(os.path.join(self.path, key)) for key in self.minutes}
         for key, value in self.minutes.iteritems():
             counter2 = 0
-            if len(value) < 59 and not (counter == 0 or counter == total_minutes):
-                raise Exception('Seconds in minute error')
             counter += 1
-            self.minutes[key].reverse()
+            if len(value) != 59 and not counter == total_minutes:
+                errorEdit.append('Seconds in minute error: {}: {}'.format(key, value))
+            seconds_counter = len(self.minutes[key])
+            counter3 = 0
             self.minutes[key] = {k2: os.listdir(os.path.join(self.path, key, k2)) for k2 in self.minutes[key]}
-            for key2, value2 in self.minutes[key].iteritems():
+            for key2, value2 in sorted(self.minutes[key].iteritems()):
+                errorEdit.append("{}\{}\{}".format(self.path, key, key2))
                 self.minutes[key][key2].sort(key=lambda x: len(x))
-                if len(value2) < self.fps and not (counter == len(key2)):
-                    raise Exception('fps error', len(value2), os.path.join(self.path, key, key2))
+                counter3 += 1
+                print len(value2) != self.fps, counter3 == seconds_counter and counter == total_minutes
+                if len(value2) != self.fps and not (counter == total_minutes and counter3 == seconds_counter):
+                    errorEdit.append('fps error: {} {}\{}'.format(len(value2), key, key2))
                 counter2 += len(value2)
             total += counter2
-            #if total >= 48:
-            #    self.total = 48
-            #    return
         self.total = total
 
     def sze(self, filename, ftype):
@@ -113,15 +116,19 @@ class MainWindow(QtGui.QMainWindow, Ui_MainWindow):
         self.selectFolder.clicked.connect(self.clk)
         self.check.clicked.connect(self.chk)
         self.run.clicked.connect(self.rn)
+        self.fps.valueChanged.connect(self.chn)
         self.show()
         app.exec_()
+
+    def chn(self):
+        self.gluerInstance.fps = self.fps.value()
 
     def rn(self):
         self.gluerInstance.fps = self.fps.value()
         self.progressBar.setValue(0)
         max = 48 if self.preview.isChecked() else self.gluerInstance.total
         self.progressBar.setMaximum(max)
-        threading.Thread(group=None, target=self.gluerInstance.work(self.callback, self.preview.isChecked()),
+        threading.Thread(group=None, target=self.gluerInstance.work(self.callback, self.errorEdit, self.preview.isChecked()),
                          name='worker thread').start()
 
     def callback(self, inp):
@@ -136,9 +143,8 @@ class MainWindow(QtGui.QMainWindow, Ui_MainWindow):
         self.gluerInstance.out_name = os.path.join(self.gluerInstance.path, 'out.avi')
 
     def chk(self):
-            self.gluerInstance.get_minutes()
-            self.gluerInstance.check_size()
+            self.gluerInstance.get_minutes(self.errorEdit)
+            self.gluerInstance.check_size(self.errorEdit)
             self.run.setEnabled(True)
-
 
 f = MainWindow(None)
