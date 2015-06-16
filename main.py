@@ -3,6 +3,7 @@
 import threading
 import time
 import math
+import datetime
 
 __author__ = 'Anton'
 import cv2
@@ -20,7 +21,7 @@ class Gluer:
         self.path = path
         self.fps = fps
         self.preview_secs = preview_secs
-        self.out_name = out_name
+        self.out_name = 'out_{:%d-%m-%Y_%H.%M.%S}.avi'.format(datetime.datetime.now())
         self.minutes = []
         self.total = None
         self.size = []
@@ -42,13 +43,13 @@ class Gluer:
                         if temp_size[0] > size[0]: size[0] = temp_size[0]
                         if temp_size[1] > size[1]: size[1] = temp_size[1]
         self.size = size
-        errorEdit.append("max size is {} {}".format(*size))
+        # errorEdit.append("max size is {} {}".format(*size))
 
     def work(self, clb, errorEdit, preview=False):
         fourcc = -1
         self.done = 0
         total = math.trunc(self.preview_secs*self.fps) if preview else self.total
-        out = cv2.VideoWriter(self.out_name.encode('utf-8'), fourcc, self.fps, (self.size[0], self.size[1]),  True)
+        out = cv2.VideoWriter(os.path.join(self.path, self.out_name), fourcc, self.fps, (self.size[0], self.size[1]),  True)
         for key, value in sorted(self.minutes.iteritems(), key=lambda x: int(x[0])):
             for key2, value2 in sorted(value.iteritems()):
                 for filename in value2:
@@ -57,7 +58,7 @@ class Gluer:
                     out.write(frame)
                     errorEdit.append("{}\{}\{}".format(key, key2, filename))
                     self.done += 1
-                    clb(self.done, total - self.done)
+                    clb(self.done, total)
                     if self.done >= total:
                         time.sleep(2)
                         out.release()
@@ -71,7 +72,7 @@ class Gluer:
         self.done = 0
         self.minutes = [x for x in os.listdir(self.path) if os.path.isdir(os.path.join(self.path, x))]  # 0 to 12, minutes
         total_minutes = len(self.minutes)
-        counter = 0  #
+        counter = 0
         total = 0
         self.minutes = {key: os.listdir(os.path.join(self.path, key)) for key in self.minutes}
         for key, value in self.minutes.iteritems():  # sorted(, key=lambda x: int(x[0])):
@@ -115,30 +116,32 @@ class MainWindow(QtGui.QMainWindow, Ui_MainWindow):
     def __init__(self, parent=None):
         # self variables
         self.gluerInstance = Gluer('', 24, '')
+        self.name = '{:%d-%m-%Y_%H.%M.%S}'.format(datetime.datetime.now())
         # another part
         app = QtGui.QApplication(sys.argv)
         QtGui.QMainWindow.__init__(self, parent)
         self.setupUi(self)
-        self.setFixedSize(690, 560)
+        self.setFixedSize(555, 500)
+        #self.progressBar.hide()
         self.selectFolder.clicked.connect(self.clk)
         self.check.clicked.connect(self.chk)
         self.run.clicked.connect(self.rn)
         self.fps.valueChanged.connect(self.chn)
         self.demo.clicked.connect(self.dm)
-        self.saveFileList.clicked.connect(self.sv)
-        self.saveLog.clicked.connect(self.sv2)
+        self.saveFileList.clicked.connect(self.sv2)
+        self.saveLog.clicked.connect(self.sv)
         self.show()
         app.exec_()
 
     def sv(self):
-            with open(os.path.join(self.gluerInstance.path, 'out.log'), 'a') as i:
+            with open(os.path.join(self.gluerInstance.path, 'out{}.log'.format(self.name)), 'a') as i:
                 i.writelines(self.errorEdit.toPlainText())
-                self.errorEdit.append('saved to {}'.format(os.path.join(self.gluerInstance.path, 'out.log')))
+            self.logEdit.append('saved to {}'.format(os.path.join(self.gluerInstance.path, 'out{}.log'.format(self.name))))
 
     def sv2(self):
-            with open(os.path.join(self.gluerInstance.path, 'files.log'), 'a') as i:
+            with open(os.path.join(self.gluerInstance.path, 'files{}.log'.format(self.name)), 'a') as i:
                 i.writelines(self.logEdit.toPlainText())
-                self.logEdit.append('saved to {}'.format(os.path.join(self.gluerInstance.path, 'files.log')))
+            self.errorEdit.append('saved to {}'.format(os.path.join(self.gluerInstance.path, 'files{}.log'.format(self.name))))
 
     def chn(self):
         self.gluerInstance.fps = self.fps.value()
@@ -149,37 +152,47 @@ class MainWindow(QtGui.QMainWindow, Ui_MainWindow):
     def dm(self):
         self.logEdit.setText('')
         self.gluerInstance.fps = self.fps.value()
-        self.progressBar.setValue(0)
-        self.progressBar.setMaximum(math.trunc(self.fps.value()*self.prw.value()))
         self.gluerInstance.preview_secs = self.prw.value()
         threading.Thread(group=None, target=self.gluerInstance.work(self.callback,
                                                                     self.logEdit, True),
                          name='worker thread').start()
 
     def rn(self):
-        self.logEdit.setText('')
+        #self.logEdit.setText('{:%d}.{:%m}.{:%Y}'.format('1', '2', '2012'))
         self.gluerInstance.fps = self.fps.value()
-        self.progressBar.setValue(0)
+        seconds = (self.gluerInstance.total*1.0/self.gluerInstance.fps)
+        minutes = "{:0>2d}".format(int(seconds/60))
+        seconds = "{:0>2d}".format(int(seconds))
+        self.len.setText(minutes)
+        self.secondsLen.setText(seconds)
         self.progressBar.setMaximum(self.gluerInstance.total)
-        self.len.setText(str(self.gluerInstance.total*1.0/self.gluerInstance.fps))
+        self.progressBar.setValue(0)
         threading.Thread(group=None, target=self.gluerInstance.work(self.callback,
                                                                     self.logEdit, False),
                          name='worker thread').start()
 
     def callback(self, inp, delta):
+        self.doneText.setText("{}%".format(inp*100/delta))
         self.progressBar.setValue(inp)
-        self.doneText.setText(str(delta))
 
     def clk(self):
-        temp = QtGui.QFileDialog.getExistingDirectory()
-        self.gluerInstance.path = unicode(temp)
+        fd = QtGui.QFileDialog()
+        tree = fd.findChild(QtGui.QTreeView)
+        tree.setRootIsDecorated(True)
+        tree.setItemsExpandable(True)
+        fd.setFileMode(QtGui.QFileDialog.DirectoryOnly)
+        fd.setViewMode(QtGui.QFileDialog.Detail)
+        tmp = fd.exec_()
+        self.gluerInstance.path = unicode(fd.selectedFiles()[0])
         self.check.setEnabled(True)
-        self.label.setText(temp)
+        self.label.setText(fd.selectedFiles()[0])
         self.run.setEnabled(False)
         self.demo.setEnabled(False)
-        self.gluerInstance.out_name = os.path.join(self.gluerInstance.path, 'out.avi')
+        self.gluerInstance.out_name = os.path.join(self.gluerInstance.path,
+                                                   'out_{:%d-%m-%Y_%H.%M.%S}.avi'.format(datetime.datetime.now()))
 
     def chk(self):
+            self.name = '{:%d-%m-%Y_%H.%M.%S}'.format(datetime.datetime.now())
             self.gluerInstance.get_minutes(self.errorEdit)
             self.gluerInstance.check_size(self.errorEdit)
             self.wdth.setText(str(self.gluerInstance.size[0]))
@@ -188,8 +201,9 @@ class MainWindow(QtGui.QMainWindow, Ui_MainWindow):
             self.demo.setEnabled(True)
             self.total.setText(str(self.gluerInstance.total))
             seconds = (self.gluerInstance.total*1.0/self.gluerInstance.fps)
-            minutes = "{0:3.0f}".format(seconds/60.0)
-            seconds = "{0:.2f}".format(seconds)
-            self.len.setText("{}:{}".format(minutes, seconds))
+            minutes = "{:0>2d}".format(int(seconds/60))
+            seconds = "{:0>2d}".format(int(seconds))
+            self.len.setText(minutes)
+            self.secondsLen.setText(seconds)
 
 f = MainWindow(None)
